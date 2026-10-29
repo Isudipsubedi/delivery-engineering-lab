@@ -1,0 +1,40 @@
+name: CD - production
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "pipelineflow/**"
+      - "**/*.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to production
+    runs-on: ubuntu-latest
+    # Configure required reviewers on this GitHub Environment to create the
+    # manual approval gate before production deploys.
+    environment:
+      name: production
+      url: ${{ vars.APP_URL }}
+
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          port: ${{ secrets.VM_SSH_PORT || 22 }}
+          script_stop: true
+          script: |
+            cd /opt/delivery-engineering-lab/prod
+            bash scripts/deploy.sh prod

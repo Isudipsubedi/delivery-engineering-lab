@@ -1,0 +1,38 @@
+name: CD - staging
+
+on:
+  push:
+    branches: [staging]
+    paths-ignore:
+      - "docs/**"
+      - "pipelineflow/**"
+      - "**/*.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to staging
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: ${{ vars.APP_URL }}
+
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          port: ${{ secrets.VM_SSH_PORT || 22 }}
+          script_stop: true
+          script: |
+            cd /opt/delivery-engineering-lab/staging
+            bash scripts/deploy.sh staging

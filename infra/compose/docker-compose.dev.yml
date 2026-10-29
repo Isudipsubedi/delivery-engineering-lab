@@ -1,0 +1,58 @@
+name: learnstack-dev
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: learnstack
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-learnstack_dev}
+      POSTGRES_DB: learnstack
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ../../database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ../../database/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U learnstack -d learnstack"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-net
+
+  backend:
+    build:
+      context: ../../apps/backend
+    restart: unless-stopped
+    environment:
+      APP_ENV: dev
+      APP_VERSION: ${APP_VERSION:-dev}
+      PORT: 3000
+      DATABASE_URL: postgres://learnstack:${DB_PASSWORD:-learnstack_dev}@db:5432/learnstack
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "3001:3000"
+    networks:
+      - app-net
+
+  frontend:
+    build:
+      context: ../../apps/frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "8081:80"
+    networks:
+      - app-net
+
+volumes:
+  db-data:
+    name: learnstack-dev-db-data
+
+networks:
+  app-net:
+    name: learnstack-dev-net
